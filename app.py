@@ -213,23 +213,44 @@ def play_youtube():
 def play_youtube_background(url):
     """Play YouTube video in a background thread using VLC"""
     try:
-        # Extract info with yt-dlp to get direct video URL
+        # Extract info with yt-dlp to get direct video URL with better options
         ydl_opts = {
-            'format': 'best[height<=720]',  # Limit resolution to save bandwidth
+            'format': 'best',  # Try best format first
             'quiet': True,
             'no_warnings': True,
+            'youtube_include_dash_manifest': False,  # Try without DASH
+            'extractor_retries': 3,  # Retry extraction a few times
+            'ignoreerrors': True,  # Continue on errors
         }
         
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=False)
-            video_url = info.get('url', None)
+            try:
+                info = ydl.extract_info(url, download=False)
+                if info and 'url' in info:
+                    video_url = info['url']
+                else:
+                    # Fallback to a different format
+                    ydl_opts['format'] = 'bestvideo[height<=720]+bestaudio/best[height<=720]'
+                    with yt_dlp.YoutubeDL(ydl_opts) as ydl2:
+                        info = ydl2.extract_info(url, download=False)
+                        video_url = info.get('url', None)
+            except Exception as e:
+                logger.error(f"Error in yt-dlp extraction, trying simpler options: {e}")
+                # Last resort fallback
+                ydl_opts = {
+                    'format': '18',  # Force to use 360p format
+                    'quiet': True,
+                }
+                with yt_dlp.YoutubeDL(ydl_opts) as ydl3:
+                    info = ydl3.extract_info(url, download=False)
+                    video_url = info.get('url', None)
             
             if not video_url:
-                logger.error("Failed to extract video URL")
+                logger.error("Failed to extract video URL after all attempts")
                 return
             
-            # Use VLC to play the video
-            cmd = f"vlc --fullscreen --no-video-title-show --no-osd '{video_url}'"
+            # Use VLC with X11 output
+            cmd = f"vlc --fullscreen --no-video-title-show --no-osd --vout=x11 '{video_url}'"
             
             # Safely handle command with potential quotes
             cmd_parts = shlex.split(cmd)
@@ -313,12 +334,15 @@ def stop_current_display():
             except Exception as e:
                 logger.error(f"Error stopping process: {e}")
     
-    # Also kill any VLC or Chromium instances that might be running
+    # More aggressive VLC cleanup
     try:
-        subprocess.run("pkill vlc", shell=True)
-        subprocess.run("pkill chromium", shell=True)
+        subprocess.run("killall -9 vlc", shell=True)
+        subprocess.run("killall -9 cvlc", shell=True)
     except Exception as e:
-        logger.error(f"Error killing processes: {e}")
+        logger.error(f"Error killing VLC processes: {e}")
+
+    # Small delay to ensure cleanup is complete
+    time.sleep(1)
 
 @app.route('/api/status', methods=['GET'])
 def get_status():
