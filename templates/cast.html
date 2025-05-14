@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cast to PiMedia</title>
+    <style>
+        :root {
+            --bg-color: #f5f5f7;
+            --card-bg: #ffffff;
+            --text-primary: #1d1d1f;
+            --text-secondary: #86868b;
+            --accent-color: #0071e3;
+            --accent-hover: #0077ed;
+            --border-color: #d2d2d7;
+            --shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            --radius: 14px;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            line-height: 1.5;
+            padding: 20px;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        
+        h1 {
+            font-weight: 600;
+            font-size: 1.8rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .subtitle {
+            color: var(--text-secondary);
+            font-size: 1rem;
+        }
+        
+        .card {
+            background-color: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 1.5rem;
+            box-shadow: var(--shadow);
+            margin-bottom: 1.5rem;
+        }
+        
+        .section-title {
+            font-weight: 500;
+            font-size: 1.2rem;
+            margin-bottom: 1rem;
+        }
+        
+        .cast-form {
+            margin-bottom: 1.5rem;
+        }
+        
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 1rem;
+        }
+        
+        label {
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+            color: var(--text-secondary);
+        }
+        
+        input[type="text"], 
+        input[type="url"] {
+            padding: 0.75rem 1rem;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 0.95rem;
+            outline: none;
+            transition: border-color 0.2s ease;
+            margin-bottom: 0.5rem;
+        }
+        
+        input[type="text"]:focus,
+        input[type="url"]:focus {
+            border-color: var(--accent-color);
+        }
+        
+        .btn {
+            display: inline-block;
+            padding: 0.75rem 1.25rem;
+            border: none;
+            border-radius: 8px;
+            font-family: inherit;
+            font-weight: 500;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: center;
+            text-decoration: none;
+        }
+        
+        .primary-btn {
+            background-color: var(--accent-color);
+            color: white;
+            width: 100%;
+        }
+        
+        .primary-btn:hover {
+            background-color: var(--accent-hover);
+        }
+        
+        .secondary-btn {
+            background-color: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+        }
+        
+        .secondary-btn:hover {
+            background-color: rgba(0, 0, 0, 0.05);
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+        
+        .button-group .btn {
+            flex: 1;
+        }
+        
+        .status-bar {
+            background-color: rgba(0, 0, 0, 0.05);
+            padding: 0.75rem;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            text-align: center;
+            margin-bottom: 1rem;
+        }
+        
+        .connection-status {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+        }
+        
+        .status-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #34c759; /* Green by default */
+        }
+        
+        .status-text {
+            color: var(--text-secondary);
+        }
+        
+        .preset-section {
+            margin-top: 1.5rem;
+        }
+        
+        .preset-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        
+        .preset-item {
+            background-color: rgba(0, 0, 0, 0.03);
+            border-radius: 8px;
+            padding: 1rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: center;
+        }
+        
+        .preset-item:hover {
+            background-color: rgba(0, 0, 0, 0.05);
+        }
+        
+        .preset-item svg {
+            width: 24px;
+            height: 24px;
+            margin-bottom: 0.5rem;
+            color: var(--accent-color);
+        }
+        
+        .preset-name {
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+        
+        .footer {
+            text-align: center;
+            margin-top: 2rem;
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Cast to PiMedia</h1>
+            <p class="subtitle">Connected to: {{ device_name }}</p>
+        </header>
+        
+        <div class="card">
+            <div class="connection-status">
+                <span class="status-dot" id="status-dot"></span>
+                <span class="status-text" id="status-text">Connecting...</span>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h2 class="section-title">Cast YouTube Video</h2>
+            <form id="youtube-form" class="cast-form">
+                <div class="input-group">
+                    <label for="youtube-url">Enter YouTube URL</label>
+                    <input type="url" id="youtube-url" name="youtube_url" placeholder="https://www.youtube.com/watch?v=...">
+                </div>
+                <button type="submit" class="btn primary-btn">Cast Now</button>
+            </form>
+        </div>
+        
+        <div class="card">
+            <h2 class="section-title">Control Display</h2>
+            <div class="button-group">
+                <button id="stop-btn" class="btn secondary-btn">Stop</button>
+                <button id="pause-btn" class="btn secondary-btn">Pause</button>
+                <button id="resume-btn" class="btn secondary-btn">Resume</button>
+            </div>
+        </div>
+        
+        <div class="card preset-section">
+            <h2 class="section-title">Quick Cast Presets</h2>
+            <div class="preset-grid">
+                <div class="preset-item" data-url="https://www.youtube.com/watch?v=jfKfPfyJRdk">
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M14 12L10 9V15L14 12Z" fill="currentColor" />
+                        <path d="M3 5C3 3.89543 3.89543 3 5 3H19C20.1046 3 21 3.89543 21 5V19C21 20.1046 20.1046 21 19 21H5C3.89543 21 3 20.1046 3 19V5Z" stroke="currentColor" stroke-width="2" />
+                    </svg>
+                    <div class="preset-name">Lofi Music</div>
+                </div>
+                <div class="preset-item" data-url="https://www.youtube.com/watch?v=5qap5aO4i9A">
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M14 12L10 9V15L14 12Z" fill="currentColor" />
+                        <path d="M3 5C3 3.89543 3.89543 3 5 3H19C20.1046 3 21 3.89543 21 5V19C21 20.1046 20.1046 21 19 21H5C3.89543 21 3 20.1046 3 19V5Z" stroke="currentColor" stroke-width="2" />
+                    </svg>
+                    <div class="preset-name">Ambient Music</div>
+                </div>
+                <div class="preset-item" data-url="https://www.youtube.com/watch?v=BHACKCNDMW8">
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M14 12L10 9V15L14 12Z" fill="currentColor" />
+                        <path d="M3 5C3 3.89543 3.89543 3 5 3H19C20.1046 3 21 3.89543 21 5V19C21 20.1046 20.1046 21 19 21H5C3.89543 21 3 20.1046 3 19V5Z" stroke="currentColor" stroke-width="2" />
+                    </svg>
+                    <div class="preset-name">Nature Scenery</div>
+                </div>
+                <div class="preset-item" data-url="https://www.youtube.com/watch?v=mF4VYzL1Ggs">
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M14 12L10 9V15L14 12Z" fill="currentColor" />
+                        <path d="M3 5C3 3.89543 3.89543 3 5 3H19C20.1046 3 21 3.89543 21 5V19C21 20.1046 20.1046 21 19 21H5C3.89543 21 3 20.1046 3 19V5Z" stroke="currentColor" stroke-width="2" />
+                    </svg>
+                    <div class="preset-name">Aquarium</div>
+                </div>
+            </div>
+        </div>
+        
+        <footer class="footer">
+            <p>PiMedia Player Cast Controller</p>
+        </footer>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Elements
+            const youtubeForm = document.getElementById('youtube-form');
+            const youtubeUrlInput = document.getElementById('youtube-url');
+            const stopBtn = document.getElementById('stop-btn');
+            const pauseBtn = document.getElementById('pause-btn');
+            const resumeBtn = document.getElementById('resume-btn');
+            const statusDot = document.getElementById('status-dot');
+            const statusText = document.getElementById('status-text');
+            const presetItems = document.querySelectorAll('.preset-item');
+            
+            // WebSocket Connection
+            const protocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+            const wsUrl = `${protocol}${window.location.host}/ws/cast`;
+            let socket;
+            let reconnectInterval;
+            let isConnected = false;
+            
+            // Connect to WebSocket
+            function connect() {
+                socket = new WebSocket(wsUrl);
+                
+                socket.onopen = function(e) {
+                    console.log('WebSocket connected');
+                    isConnected = true;
+                    statusDot.style.backgroundColor = '#34c759'; // Green
+                    statusText.textContent = 'Connected';
+                    
+                    // Clear any reconnect interval
+                    if (reconnectInterval) {
+                        clearInterval(reconnectInterval);
+                        reconnectInterval = null;
+                    }
+                    
+                    // Send connect message with device info
+                    sendMessage({
+                        type: 'connect',
+                        device: navigator.userAgent
+                    });
+                };
+                
+                socket.onclose = function(event) {
+                    console.log('WebSocket disconnected:', event);
+                    isConnected = false;
+                    statusDot.style.backgroundColor = '#ff3b30'; // Red
+                    statusText.textContent = 'Disconnected';
+                    
+                    // Try to reconnect
+                    if (!reconnectInterval) {
+                        reconnectInterval = setInterval(connect, 5000);
+                    }
+                };
+                
+                socket.onerror = function(error) {
+                    console.error('WebSocket error:', error);
+                    statusDot.style.backgroundColor = '#ff3b30'; // Red
+                    statusText.textContent = 'Connection Error';
+                };
+                
+                socket.onmessage = function(event) {
+                    try {
+                        const data = JSON.parse(event.data);
+                        console.log('WebSocket message:', data);
+                        
+                        if (data.type === 'welcome' || data.type === 'connected') {
+                            statusText.textContent = 'Connected & Ready';
+                        } else if (data.type === 'cast_ack') {
+                            if (data.status === 'success') {
+                                showNotification('Cast successful!', 'success');
+                            } else {
+                                showNotification('Cast failed: ' + data.message, 'error');
+                            }
+                        } else if (data.type === 'error') {
+                            showNotification('Error: ' + data.message, 'error');
+                        }
+                    } catch (e) {
+                        console.error('Error parsing WebSocket message:', e);
+                    }
+                };
+            }
+            
+            // Send message via WebSocket
+            function sendMessage(message) {
+                if (socket && socket.readyState === WebSocket.OPEN) {
+                    socket.send(JSON.stringify(message));
+                } else {
+                    showNotification('Not connected to PiMedia', 'error');
+                }
+            }
+            
+            // Show notification (simple alert for now)
+            function showNotification(message, type) {
+                if (type === 'error') {
+                    alert('Error: ' + message);
+                } else {
+                    alert(message);
+                }
+            }
+            
+            // Handle YouTube form submission
+            youtubeForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const youtubeUrl = youtubeUrlInput.value.trim();
+                if (!youtubeUrl) {
+                    showNotification('Please enter a YouTube URL', 'error');
+                    return;
+                }
+                
+                if (!isConnected) {
+                    showNotification('Not connected to PiMedia', 'error');
+                    return;
+                }
+                
+                // Send cast command
+                sendMessage({
+                    type: 'cast',
+                    url: youtubeUrl,
+                    media_type: 'youtube'
+                });
+                
+                // Clear form
+                youtubeUrlInput.value = '';
+            });
+            
+            // Handle preset selections
+            presetItems.forEach(item => {
+                item.addEventListener('click', function() {
+                    const url = this.getAttribute('data-url');
+                    if (!url) return;
+                    
+                    if (!isConnected) {
+                        showNotification('Not connected to PiMedia', 'error');
+                        return;
+                    }
+                    
+                    // Send cast command
+                    sendMessage({
+                        type: 'cast',
+                        url: url,
+                        media_type: 'youtube'
+                    });
+                    
+                    // Visual feedback
+                    this.classList.add('active');
+                    setTimeout(() => {
+                        this.classList.remove('active');
+                    }, 1000);
+                });
+            });
+            
+            // Handle stop button
+            stopBtn.addEventListener('click', function() {
+                if (!isConnected) {
+                    showNotification('Not connected to PiMedia', 'error');
+                    return;
+                }
+                
+                sendMessage({
+                    type: 'control',
+                    action: 'stop'
+                });
+            });
+            
+            // Handle pause button
+            pauseBtn.addEventListener('click', function() {
+                if (!isConnected) {
+                    showNotification('Not connected to PiMedia', 'error');
+                    return;
+                }
+                
+                sendMessage({
+                    type: 'control',
+                    action: 'pause'
+                });
+            });
+            
+            // Handle resume button
+            resumeBtn.addEventListener('click', function() {
+                if (!isConnected) {
+                    showNotification('Not connected to PiMedia', 'error');
+                    return;
+                }
+                
+                sendMessage({
+                    type: 'control',
+                    action: 'resume'
+                });
+            });
+            
+            // Initialize connection
+            connect();
+        });
+    </script>
+</body>
+</html>

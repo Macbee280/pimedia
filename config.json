@@ -1,0 +1,85 @@
+{
+    "grafana_url": "http://192.168.1.100:3000",
+    "grafana_dashboards": [
+        {
+            "name": "System Overview",
+            "url": "/d/abc123/system-overview",
+            "refresh_rate": 60
+        },
+        {
+            "name": "Network Stats",
+            "url": "/d/def456/network-statistics",
+            "refresh_rate": 30
+        },
+        {
+            "name": "Temperature",
+            "url": "/d/ghi789/temperature-monitoring",
+            "refresh_rate": 120
+        },
+        {
+            "name": "CPU Usage",
+            "url": "/d/jkl012/cpu-usage-metrics",
+            "refresh_rate": 15
+        },
+        {
+            "name": "Memory Stats",
+            "url": "/d/mno345/memory-statistics",
+            "refresh_rate": 30
+        },
+        {
+            "name": "Storage Overview",
+            "url": "/d/pqr678/storage-overview",
+            "refresh_rate": 300
+        }
+    ],
+    "preset_youtube": [
+        {
+            "name": "Lofi Hip Hop Radio",
+            "description": "Beats to relax/study to",
+            "url": "https://www.youtube.com/watch?v=jfKfPfyJRdk",
+            "thumbnail": "lofi_hiphop.jpg"
+        },
+        {
+            "name": "Ambient Music",
+            "description": "Relaxing ambient sounds",
+            "url": "https://www.youtube.com/watch?v=5qap5aO4i9A",
+            "thumbnail": "ambient_music.jpg"
+        },
+        {
+            "name": "Nature Scenery",
+            "description": "Beautiful landscapes in 4K",
+            "url": "https://www.youtube.com/watch?v=BHACKCNDMW8",
+            "thumbnail": "nature_scenery.jpg"
+        },
+        {
+            "name": "Aquarium",
+            "description": "Relaxing aquarium view",
+            "url": "https://www.youtube.com/watch?v=mF4VYzL1Ggs",
+            "thumbnail": "aquarium.jpg"
+        },
+        {
+            "name": "Fireplace",
+            "description": "Crackling fireplace with sounds",
+            "url": "https://www.youtube.com/watch?v=L_LUpnjgPso",
+            "thumbnail": "fireplace.jpg"
+        }
+    ],
+    "cast_settings": {
+        "device_name": "PiMedia Player",
+        "allow_external_networks": false,
+        "require_pin": true,
+        "default_pin": "1234",
+        "auto_accept_cast": false
+    },
+    "display_settings": {
+        "screensaver_timeout": 1800,
+        "screensaver_type": "clock",
+        "brightness": 100,
+        "kiosk_mode": true,
+        "hide_cursor": true
+    },
+    "current_display": null,
+    "display_type": null,
+    "server_port": 5000,
+    "version": "1.0.0"
+}
