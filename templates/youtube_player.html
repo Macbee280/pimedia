@@ -20,12 +20,31 @@
             width: 100%;
             height: 100%;
         }
+        .error-message {
+            color: white;
+            text-align: center;
+            font-family: Arial, sans-serif;
+            padding-top: 40vh;
+            font-size: 20px;
+        }
+        .loading {
+            color: white;
+            text-align: center;
+            font-family: Arial, sans-serif;
+            padding-top: 40vh;
+            font-size: 20px;
+        }
     </style>
 </head>
 <body>
-    <div id="player"></div>
+    <div id="player">
+        <div class="loading">Loading YouTube player...</div>
+    </div>
 
     <script>
+        // Display debugging info
+        console.log("YouTube Player loading...");
+        
         // Load the YouTube IFrame API asynchronously
         var tag = document.createElement('script');
         tag.src = "https://www.youtube.com/iframe_api";
@@ -36,83 +55,161 @@
         var player;
         var videoId = '';
 
+        // Get videoId from URL parameters
+        function getVideoId() {
+            try {
+                const urlParams = new URLSearchParams(window.location.search);
+                return urlParams.get('v') || '';
+            } catch (error) {
+                console.error("Error getting video ID:", error);
+                return '';
+            }
+        }
+
         // Create YouTube player when API is ready
         function onYouTubeIframeAPIReady() {
+            console.log("YouTube API ready");
+            
             // Get videoId from URL parameters
-            const urlParams = new URLSearchParams(window.location.search);
-            videoId = urlParams.get('v') || '';
+            videoId = getVideoId();
+            console.log("Video ID:", videoId);
 
             if (videoId) {
-                player = new YT.Player('player', {
-                    videoId: videoId,
-                    playerVars: {
-                        'autoplay': 1,
-                        'controls': 0,
-                        'rel': 0,
-                        'showinfo': 0,
-                        'modestbranding': 1,
-                        'iv_load_policy': 3,
-                        'fs': 1,
-                        'playsinline': 1
-                    },
-                    events: {
-                        'onReady': onPlayerReady,
-                        'onStateChange': onPlayerStateChange,
-                        'onError': onPlayerError
-                    }
-                });
+                try {
+                    player = new YT.Player('player', {
+                        height: '100%',
+                        width: '100%',
+                        videoId: videoId,
+                        playerVars: {
+                            'autoplay': 1,
+                            'controls': 0,
+                            'rel': 0,
+                            'showinfo': 0,
+                            'modestbranding': 1,
+                            'iv_load_policy': 3,
+                            'fs': 1,
+                            'playsinline': 1
+                        },
+                        events: {
+                            'onReady': onPlayerReady,
+                            'onStateChange': onPlayerStateChange,
+                            'onError': onPlayerError
+                        }
+                    });
+                    console.log("Player initialized");
+                } catch (error) {
+                    console.error("Error creating player:", error);
+                    document.getElementById('player').innerHTML = '<div class="error-message">Error initializing YouTube player: ' + error.message + '</div>';
+                }
             } else {
-                document.getElementById('player').innerHTML = '<div style="color: white; text-align: center; padding-top: 40vh;">No video ID provided</div>';
+                document.getElementById('player').innerHTML = '<div class="error-message">No video ID provided</div>';
             }
         }
 
         // When player is ready
         function onPlayerReady(event) {
-            event.target.playVideo();
-            // Go full screen if possible
-            var elem = document.documentElement;
-            if (elem.requestFullscreen) {
-                elem.requestFullscreen();
-            } else if (elem.webkitRequestFullscreen) { // Safari
-                elem.webkitRequestFullscreen();
-            } else if (elem.msRequestFullscreen) { // IE11
-                elem.msRequestFullscreen();
+            console.log("Player ready");
+            try {
+                event.target.playVideo();
+                console.log("Playing video");
+                
+                // Go full screen if possible
+                setTimeout(function() {
+                    try {
+                        var elem = document.documentElement;
+                        if (elem.requestFullscreen) {
+                            elem.requestFullscreen();
+                        } else if (elem.webkitRequestFullscreen) { // Safari
+                            elem.webkitRequestFullscreen();
+                        } else if (elem.msRequestFullscreen) { // IE11
+                            elem.msRequestFullscreen();
+                        }
+                    } catch (error) {
+                        console.error("Error going fullscreen:", error);
+                    }
+                }, 1000);
+            } catch (error) {
+                console.error("Error in onPlayerReady:", error);
             }
         }
 
         // When player state changes
         function onPlayerStateChange(event) {
+            console.log("Player state changed:", event.data);
+            
             // If video ends, notify parent window
             if (event.data === YT.PlayerState.ENDED) {
-                window.parent.postMessage({type: 'video_ended', videoId: videoId}, '*');
+                console.log("Video ended");
+                try {
+                    window.parent.postMessage({type: 'video_ended', videoId: videoId}, '*');
+                } catch (error) {
+                    console.error("Error sending message to parent:", error);
+                }
             }
         }
 
         // Handle player errors
         function onPlayerError(event) {
             console.error("YouTube Player Error:", event.data);
-            window.parent.postMessage({type: 'video_error', videoId: videoId, error: event.data}, '*');
+            var errorMessage = "Unknown error";
+            
+            switch(event.data) {
+                case 2:
+                    errorMessage = "Invalid video ID";
+                    break;
+                case 5:
+                    errorMessage = "HTML5 player error";
+                    break;
+                case 100:
+                    errorMessage = "Video not found or removed";
+                    break;
+                case 101:
+                case 150:
+                    errorMessage = "Video playback not allowed in embedded player";
+                    break;
+            }
+            
+            document.getElementById('player').innerHTML = '<div class="error-message">YouTube Error: ' + errorMessage + '</div>';
+            
+            try {
+                window.parent.postMessage({type: 'video_error', videoId: videoId, error: event.data, message: errorMessage}, '*');
+            } catch (error) {
+                console.error("Error sending error message to parent:", error);
+            }
         }
 
         // Listen for messages from parent window
         window.addEventListener('message', function(event) {
-            if (event.data && event.data.type === 'play_video') {
-                if (event.data.videoId) {
-                    if (player) {
-                        player.loadVideoById(event.data.videoId);
-                    } else {
-                        videoId = event.data.videoId;
-                        onYouTubeIframeAPIReady();
+            console.log("Message received:", event.data);
+            
+            try {
+                if (event.data && event.data.type === 'play_video') {
+                    if (event.data.videoId) {
+                        if (player) {
+                            player.loadVideoById(event.data.videoId);
+                        } else {
+                            videoId = event.data.videoId;
+                            onYouTubeIframeAPIReady();
+                        }
                     }
+                } else if (event.data && event.data.type === 'pause_video') {
+                    if (player) player.pauseVideo();
+                } else if (event.data && event.data.type === 'resume_video') {
+                    if (player) player.playVideo();
+                } else if (event.data && event.data.type === 'stop_video') {
+                    if (player) player.stopVideo();
                 }
-            } else if (event.data && event.data.type === 'pause_video') {
-                if (player) player.pauseVideo();
-            } else if (event.data && event.data.type === 'resume_video') {
-                if (player) player.playVideo();
-            } else if (event.data && event.data.type === 'stop_video') {
-                if (player) player.stopVideo();
+            } catch (error) {
+                console.error("Error handling message:", error);
             }
         });
+
+        // Handle errors during page load
+        window.onerror = function(message, source, lineno, colno, error) {
+            console.error("Global error:", message, "at", source, ":", lineno, ":", colno);
+            document.getElementById('player').innerHTML = '<div class="error-message">Error: ' + message + '</div>';
+            return true;
+        };
     </script>
 </body>
 </html>

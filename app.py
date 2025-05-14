@@ -189,11 +189,41 @@ def cast_page():
     
     return render_template('cast.html', device_name=device_name)
 
+
 @app.route('/youtube_player')
 def youtube_player():
-    """Serve the YouTube player page"""
-    video_id = request.args.get('v', '')
-    return render_template('youtube_player.html', video_id=video_id)
+    """Serve the YouTube player page with robust error handling"""
+    try:
+        video_id = request.args.get('v', '')
+        logger.info(f"Serving YouTube player for video ID: {video_id}")
+        
+        if not video_id:
+            logger.warning("No video ID provided to youtube_player route")
+        
+        return render_template('youtube_player.html', video_id=video_id)
+    except Exception as e:
+        logger.error(f"Error in youtube_player route: {e}", exc_info=True)
+        # Return a basic error page
+        error_html = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Error</title>
+            <style>
+                body {{ font-family: Arial, sans-serif; background: #000; color: #fff; text-align: center; padding-top: 50px; }}
+                .error {{ padding: 20px; background: rgba(255,0,0,0.2); border-radius: 10px; margin: 20px auto; max-width: 600px; }}
+            </style>
+        </head>
+        <body>
+            <h1>Error Loading YouTube Player</h1>
+            <div class="error">
+                <p>There was an error loading the YouTube player: {str(e)}</p>
+                <p>Please try again or contact support.</p>
+            </div>
+        </body>
+        </html>
+        """
+        return error_html
 
 @app.route('/api/play-youtube', methods=['POST'])
 def play_youtube():
@@ -219,20 +249,44 @@ def play_youtube():
     return jsonify({'status': 'success', 'message': 'Playing YouTube video'})
 
 def play_youtube_background(url):
-    """Play YouTube video using embedded player in browser"""
+    """Play YouTube video using embedded player in browser with robust error handling"""
     try:
+        logger.info(f"Attempting to play YouTube URL: {url}")
+        
         # Extract video ID from the URL
         video_id = None
-        if "youtube.com" in url:
-            query = urllib.parse.urlparse(url).query
-            params = urllib.parse.parse_qs(query)
-            if "v" in params:
-                video_id = params["v"][0]
-        elif "youtu.be" in url:
-            video_id = url.split("/")[-1].split("?")[0]
+        try:
+            if "youtube.com" in url and "v=" in url:
+                parsed_url = urllib.parse.urlparse(url)
+                query_params = urllib.parse.parse_qs(parsed_url.query)
+                if "v" in query_params and query_params["v"]:
+                    video_id = query_params["v"][0]
+                    logger.info(f"Extracted video ID from youtube.com URL: {video_id}")
+            elif "youtu.be" in url:
+                # Format: https://youtu.be/VIDEO_ID
+                path_parts = urllib.parse.urlparse(url).path.split('/')
+                if len(path_parts) > 1:
+                    video_id = path_parts[-1]
+                    logger.info(f"Extracted video ID from youtu.be URL: {video_id}")
+        except Exception as parse_err:
+            logger.error(f"Error parsing YouTube URL: {parse_err}")
         
         if not video_id:
             logger.error(f"Could not extract YouTube video ID from URL: {url}")
+            # Try a different method - using regex
+            import re
+            try:
+                # Try to find video ID using regex
+                youtube_regex = r'(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})'
+                match = re.search(youtube_regex, url)
+                if match:
+                    video_id = match.group(1)
+                    logger.info(f"Extracted video ID using regex: {video_id}")
+            except Exception as regex_err:
+                logger.error(f"Regex extraction also failed: {regex_err}")
+        
+        if not video_id:
+            logger.error("All video ID extraction methods failed, cannot play video")
             return
         
         # Get browser path from config
@@ -241,17 +295,21 @@ def play_youtube_background(url):
         
         # Create the URL to the local YouTube player with the video ID
         player_url = f"http://localhost:5000/youtube_player?v={video_id}"
+        logger.info(f"Opening player URL: {player_url}")
         
-        # Launch browser in kiosk mode
-        cmd = f"{browser_path} --kiosk --incognito --disable-infobars --autoplay-policy=no-user-gesture-required {player_url}"
+        # Adjust browser flags for optimal performance on Raspberry Pi
+        cmd = f"{browser_path} --kiosk --incognito --disable-infobars --autoplay-policy=no-user-gesture-required --disable-extensions --disable-translate --disable-sync {player_url}"
+        logger.info(f"Executing command: {cmd}")
+        
         cmd_parts = shlex.split(cmd)
         
         with process_lock:
             global current_process
             current_process = subprocess.Popen(cmd_parts, env={"DISPLAY": ":0"})
+            logger.info(f"Started browser process with PID: {current_process.pid if current_process else 'unknown'}")
     
     except Exception as e:
-        logger.error(f"Error in YouTube playback thread: {e}")
+        logger.error(f"Error in YouTube playback thread: {e}", exc_info=True)
 
 @app.route('/api/show-dashboard', methods=['POST'])
 def show_dashboard():
