@@ -249,7 +249,7 @@ def play_youtube():
     return jsonify({'status': 'success', 'message': 'Playing YouTube video'})
 
 def play_youtube_background(url):
-    """Play YouTube video using embedded player in browser with robust error handling"""
+    """Play YouTube video using embedded player in browser with GPU acceleration disabled"""
     try:
         logger.info(f"Attempting to play YouTube URL: {url}")
         
@@ -297,8 +297,11 @@ def play_youtube_background(url):
         player_url = f"http://localhost:5000/youtube_player?v={video_id}"
         logger.info(f"Opening player URL: {player_url}")
         
-        # Adjust browser flags for optimal performance on Raspberry Pi
-        cmd = f"{browser_path} --kiosk --incognito --disable-infobars --autoplay-policy=no-user-gesture-required --disable-extensions --disable-translate --disable-sync {player_url}"
+        # Use flags to disable GPU acceleration and other problematic features
+        cmd = f"{browser_path} --kiosk --incognito --disable-gpu --disable-accelerated-compositing " + \
+              f"--disable-gpu-compositing --disable-accelerated-2d-canvas --disable-accelerated-video-decode " + \
+              f"--disable-webgl --autoplay-policy=no-user-gesture-required {player_url}"
+        
         logger.info(f"Executing command: {cmd}")
         
         cmd_parts = shlex.split(cmd)
@@ -328,8 +331,11 @@ def show_dashboard():
     # Get browser path from config
     browser_path = config.get('display_settings', {}).get('browser_path', '/usr/bin/chromium-browser')
     
-    # Launch browser in kiosk mode
-    cmd = f"{browser_path} --kiosk --incognito {full_url}"
+    # Launch browser in kiosk mode with GPU acceleration disabled
+    cmd = f"{browser_path} --kiosk --incognito --disable-gpu --disable-accelerated-compositing " + \
+          f"--disable-gpu-compositing --disable-accelerated-2d-canvas --disable-accelerated-video-decode " + \
+          f"--disable-webgl {full_url}"
+    
     cmd_parts = shlex.split(cmd)
     
     with process_lock:
