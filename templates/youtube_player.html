@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PiMedia YouTube Player</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #000;
+        }
+        #player {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+<body>
+    <div id="player"></div>
+
+    <script>
+        // Load the YouTube IFrame API asynchronously
+        var tag = document.createElement('script');
+        tag.src = "https://www.youtube.com/iframe_api";
+        var firstScriptTag = document.getElementsByTagName('script')[0];
+        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+
+        // Variables
+        var player;
+        var videoId = '';
+
+        // Create YouTube player when API is ready
+        function onYouTubeIframeAPIReady() {
+            // Get videoId from URL parameters
+            const urlParams = new URLSearchParams(window.location.search);
+            videoId = urlParams.get('v') || '';
+
+            if (videoId) {
+                player = new YT.Player('player', {
+                    videoId: videoId,
+                    playerVars: {
+                        'autoplay': 1,
+                        'controls': 0,
+                        'rel': 0,
+                        'showinfo': 0,
+                        'modestbranding': 1,
+                        'iv_load_policy': 3,
+                        'fs': 1,
+                        'playsinline': 1
+                    },
+                    events: {
+                        'onReady': onPlayerReady,
+                        'onStateChange': onPlayerStateChange,
+                        'onError': onPlayerError
+                    }
+                });
+            } else {
+                document.getElementById('player').innerHTML = '<div style="color: white; text-align: center; padding-top: 40vh;">No video ID provided</div>';
+            }
+        }
+
+        // When player is ready
+        function onPlayerReady(event) {
+            event.target.playVideo();
+            // Go full screen if possible
+            var elem = document.documentElement;
+            if (elem.requestFullscreen) {
+                elem.requestFullscreen();
+            } else if (elem.webkitRequestFullscreen) { // Safari
+                elem.webkitRequestFullscreen();
+            } else if (elem.msRequestFullscreen) { // IE11
+                elem.msRequestFullscreen();
+            }
+        }
+
+        // When player state changes
+        function onPlayerStateChange(event) {
+            // If video ends, notify parent window
+            if (event.data === YT.PlayerState.ENDED) {
+                window.parent.postMessage({type: 'video_ended', videoId: videoId}, '*');
+            }
+        }
+
+        // Handle player errors
+        function onPlayerError(event) {
+            console.error("YouTube Player Error:", event.data);
+            window.parent.postMessage({type: 'video_error', videoId: videoId, error: event.data}, '*');
+        }
+
+        // Listen for messages from parent window
+        window.addEventListener('message', function(event) {
+            if (event.data && event.data.type === 'play_video') {
+                if (event.data.videoId) {
+                    if (player) {
+                        player.loadVideoById(event.data.videoId);
+                    } else {
+                        videoId = event.data.videoId;
+                        onYouTubeIframeAPIReady();
+                    }
+                }
+            } else if (event.data && event.data.type === 'pause_video') {
+                if (player) player.pauseVideo();
+            } else if (event.data && event.data.type === 'resume_video') {
+                if (player) player.playVideo();
+            } else if (event.data && event.data.type === 'stop_video') {
+                if (player) player.stopVideo();
+            }
+        });
+    </script>
+</body>
+</html>

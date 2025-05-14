@@ -4,7 +4,9 @@ import subprocess
 import json
 import socket
 import qrcode
+import requests
 from io import BytesIO
+import urllib.parse
 import base64
 from flask_sock import Sock
 import threading
@@ -187,6 +189,12 @@ def cast_page():
     
     return render_template('cast.html', device_name=device_name)
 
+@app.route('/youtube_player')
+def youtube_player():
+    """Serve the YouTube player page"""
+    video_id = request.args.get('v', '')
+    return render_template('youtube_player.html', video_id=video_id)
+
 @app.route('/api/play-youtube', methods=['POST'])
 def play_youtube():
     config = load_config()
@@ -211,53 +219,36 @@ def play_youtube():
     return jsonify({'status': 'success', 'message': 'Playing YouTube video'})
 
 def play_youtube_background(url):
-    """Play YouTube video in a background thread using VLC"""
+    """Play YouTube video using embedded player in browser"""
     try:
-        # Extract info with yt-dlp to get direct video URL with better options
-        ydl_opts = {
-            'format': 'best',  # Try best format first
-            'quiet': True,
-            'no_warnings': True,
-            'youtube_include_dash_manifest': False,  # Try without DASH
-            'extractor_retries': 3,  # Retry extraction a few times
-            'ignoreerrors': True,  # Continue on errors
-        }
+        # Extract video ID from the URL
+        video_id = None
+        if "youtube.com" in url:
+            query = urllib.parse.urlparse(url).query
+            params = urllib.parse.parse_qs(query)
+            if "v" in params:
+                video_id = params["v"][0]
+        elif "youtu.be" in url:
+            video_id = url.split("/")[-1].split("?")[0]
         
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            try:
-                info = ydl.extract_info(url, download=False)
-                if info and 'url' in info:
-                    video_url = info['url']
-                else:
-                    # Fallback to a different format
-                    ydl_opts['format'] = 'bestvideo[height<=720]+bestaudio/best[height<=720]'
-                    with yt_dlp.YoutubeDL(ydl_opts) as ydl2:
-                        info = ydl2.extract_info(url, download=False)
-                        video_url = info.get('url', None)
-            except Exception as e:
-                logger.error(f"Error in yt-dlp extraction, trying simpler options: {e}")
-                # Last resort fallback
-                ydl_opts = {
-                    'format': '18',  # Force to use 360p format
-                    'quiet': True,
-                }
-                with yt_dlp.YoutubeDL(ydl_opts) as ydl3:
-                    info = ydl3.extract_info(url, download=False)
-                    video_url = info.get('url', None)
-            
-            if not video_url:
-                logger.error("Failed to extract video URL after all attempts")
-                return
-            
-            # Use VLC with X11 output
-            cmd = f"vlc --fullscreen --no-video-title-show --no-osd --vout=x11 '{video_url}'"
-            
-            # Safely handle command with potential quotes
-            cmd_parts = shlex.split(cmd)
-            
-            with process_lock:
-                global current_process
-                current_process = subprocess.Popen(cmd_parts, env={"DISPLAY": ":0"})
+        if not video_id:
+            logger.error(f"Could not extract YouTube video ID from URL: {url}")
+            return
+        
+        # Get browser path from config
+        config = load_config()
+        browser_path = config.get('display_settings', {}).get('browser_path', '/usr/bin/chromium-browser')
+        
+        # Create the URL to the local YouTube player with the video ID
+        player_url = f"http://localhost:5000/youtube_player?v={video_id}"
+        
+        # Launch browser in kiosk mode
+        cmd = f"{browser_path} --kiosk --incognito --disable-infobars --autoplay-policy=no-user-gesture-required {player_url}"
+        cmd_parts = shlex.split(cmd)
+        
+        with process_lock:
+            global current_process
+            current_process = subprocess.Popen(cmd_parts, env={"DISPLAY": ":0"})
     
     except Exception as e:
         logger.error(f"Error in YouTube playback thread: {e}")
