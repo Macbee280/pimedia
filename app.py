@@ -10,7 +10,7 @@ from flask_sock import Sock
 import threading
 import logging
 import time
-import yt_dlp as youtube_dl
+import yt_dlp
 import shlex
 
 app = Flask(__name__)
@@ -60,6 +60,24 @@ def load_config():
                     'url': 'https://www.youtube.com/watch?v=5qap5aO4i9A',
                     'thumbnail': None
                 },
+                {
+                    'name': 'Nature Scenery',
+                    'description': 'Beautiful landscapes in 4K',
+                    'url': 'https://www.youtube.com/watch?v=BHACKCNDMW8',
+                    'thumbnail': None
+                },
+                {
+                    'name': 'Aquarium',
+                    'description': 'Relaxing aquarium view',
+                    'url': 'https://www.youtube.com/watch?v=mF4VYzL1Ggs',
+                    'thumbnail': None
+                },
+                {
+                    'name': 'Fireplace',
+                    'description': 'Crackling fireplace with sounds',
+                    'url': 'https://www.youtube.com/watch?v=L_LUpnjgPso',
+                    'thumbnail': None
+                }
             ],
             'cast_settings': {
                 'device_name': 'PiMedia Player',
@@ -193,7 +211,7 @@ def play_youtube():
     return jsonify({'status': 'success', 'message': 'Playing YouTube video'})
 
 def play_youtube_background(url):
-    """Play YouTube video in a background thread using a desktop environment"""
+    """Play YouTube video in a background thread using VLC"""
     try:
         # Extract info with yt-dlp to get direct video URL
         ydl_opts = {
@@ -202,7 +220,7 @@ def play_youtube_background(url):
             'no_warnings': True,
         }
         
-        with youtube_dl.YoutubeDL(ydl_opts) as ydl:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
             video_url = info.get('url', None)
             
@@ -210,7 +228,7 @@ def play_youtube_background(url):
                 logger.error("Failed to extract video URL")
                 return
             
-            # Now we can use VLC in a desktop environment
+            # Use VLC to play the video
             cmd = f"vlc --fullscreen --no-video-title-show --no-osd '{video_url}'"
             
             # Safely handle command with potential quotes
@@ -234,7 +252,7 @@ def show_dashboard():
     # Stop any currently running display
     stop_current_display()
     
-    # Now we can use a browser in the desktop environment
+    # Get the full dashboard URL
     full_url = config['grafana_url'] + dashboard_url
     
     # Get browser path from config
@@ -502,4 +520,4 @@ if __name__ == '__main__':
         os.makedirs(IMAGES_DIR)
     
     # Run the app
-    app.run(host='0.0.0.0', port=load_config().get('server_port', 5000), debug=True)
+    app.run(host='0.0.0.0', port=load_config().get('server_port', 5000), debug=False)
